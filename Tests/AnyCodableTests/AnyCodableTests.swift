@@ -86,6 +86,60 @@ class AnyCodableTests: XCTestCase {
         XCTAssertEqual(any["string"] as! String, "test")
         XCTAssertNil(any["nil"]!)
     }
+
+    func testPlistEncodable() throws {
+
+        let anyCodable = AnyCodable(AnyCodableTests.mockDataStructure)
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .xml
+        let data = try encoder.encode(anyCodable)
+
+        let dataString = String(data: data, encoding: .utf8)!
+
+        XCTAssertNoThrow(try PropertyListDecoder().decode(AnyCodable.self, from: data))
+        XCTAssertTrue(dataString.contains("""
+            <key>optionalDictionary</key>\n\t<dict>\n\t\t<key>key</key>\n\t\t<string>value</string>\n\t\t<key>nil</key>\n\t\t<string>$null</string>\n\t</dict>
+            """))
+    }
+
+    func testPlistDecodable() throws {
+
+        let input = AnyCodable(AnyCodableTests.mockDataStructure)
+        let data = try PropertyListEncoder().encode(input)
+
+        let output = try PropertyListDecoder().decode(AnyCodable.self, from: data)
+        let any = output.value as! [String: Any?]
+
+        XCTAssertEqual(any["dictionary"] as! [String: String], ["key": "value"])
+        XCTAssertEqual((any["optionalDictionary"] as! [String: Any?])["key"] as? String, "value")
+        XCTAssertNil((any["optionalDictionary"] as! [String: Any?])["nil"]!)
+        XCTAssertEqual(any["array"] as! [String], ["a", "b", "c"])
+        XCTAssertEqual((any["optionalArray"] as! [String?])[0], "a")
+        XCTAssertEqual((any["optionalArray"] as! [String?])[1], "b")
+        XCTAssertEqual((any["optionalArray"] as! [String?])[2], "c")
+        XCTAssertNil((any["optionalArray"] as! [String?])[3])
+        XCTAssertEqual(any["bool"] as! Bool, true)
+        XCTAssertEqual(any["int"] as! Int, Int(1))
+        XCTAssertEqual(any["int8"] as! Int, Int(1))
+        XCTAssertEqual(any["int16"] as! Int, Int(1))
+        XCTAssertEqual(any["int32"] as! Int, Int(1))
+        XCTAssertEqual(any["int64"] as! Int, Int(1))
+        XCTAssertEqual(any["uint"] as! Int, Int(1))
+        XCTAssertEqual(any["uint8"] as! Int, Int(1))
+        XCTAssertEqual(any["uint16"] as! Int, Int(1))
+        XCTAssertEqual(any["uint32"] as! Int, Int(1))
+        XCTAssertEqual(any["uint64"] as! Int, Int(1))
+        XCTAssertEqual(any["float"] as! Double, Double(1.1), accuracy: 0.001)
+        XCTAssertEqual(any["double"] as! Double, Double(1.1), accuracy: 0.001)
+        XCTAssertEqual(any["double-rounded"] as! Int, Int(2))
+        XCTAssertEqual(any["string"] as! String, "test")
+        XCTAssertNil(any["nil"]!)
+    }
+
+    func testPlistFile() throws {
+        let data = try testData(forResource: "test", ofType: "plist")
+        XCTAssertNoThrow(try PropertyListDecoder().decode(AnyCodable.self, from: data))
+    }
 }
 
 extension AnyCodableTests {
@@ -116,4 +170,11 @@ extension AnyCodableTests {
         "number-bool": NSNumber(value: 1),
         "number-int": NSNumber(value: 2)
     ]
+}
+
+func testData(forResource resource: String, ofType type: String) throws -> Data {
+    let bundle = Bundle(for: AnyCodableTests.self)
+    let path = bundle.path(forResource: resource, ofType: type)!
+    let url = URL(fileURLWithPath: path)
+    return try Data(contentsOf: url)
 }
